@@ -1,0 +1,16 @@
+# Mengabaikan folder model dan dataset agar tidak berat
+base_model/
+dataset_model/
+trained_model/
+
+# Mengabaikan file spesifik model dan encoder
+*.bin
+*.h5
+*.safetensors
+*.pth
+*.pkl
+*.ot
+*.msgpack
+
+# Mengabaikan dataset
+*.csv

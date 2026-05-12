@@ -1,0 +1,130 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from transformers import DistilBertTokenizer, AutoModel
+import joblib
+import numpy as np
+
+app = FastAPI()
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8000", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class EmotionRequest(BaseModel):
+    text: str
+
+# Setup device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+class EmotionClassifier(nn.Module):
+    def __init__(self, model_path, num_labels):
+        super().__init__()
+        self.bert = AutoModel.from_pretrained(model_path)
+        self.dropout = nn.Dropout(0.3)
+        self.fc = nn.Linear(768, num_labels)
+
+    def forward(self, input_ids, attention_mask):
+        outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+        pooled = outputs.last_hidden_state[:, 0]
+        x = self.dropout(pooled)
+        return self.fc(x)
+
+try:
+    label_encoder = joblib.load("label_encoder.pkl")
+    print(f"Label encoder loaded. Classes: {label_encoder.classes_}")
+    num_labels = len(label_encoder.classes_)
+except FileNotFoundError:
+    print("Error: label_encoder.pkl not found!")
+    label_encoder = None
+    num_labels = 0
+
+BASE_MODEL_PATH = "./base_model/distilbert-base-uncased"
+TRAINED_MODEL_PATH = "./trained_model/model.pth"
+
+try:
+    # Load tokenizer
+    tokenizer = DistilBertTokenizer.from_pretrained(BASE_MODEL_PATH)
+    print("Tokenizer loaded successfully")
+    
+    # Load model architecture
+    model = EmotionClassifier(BASE_MODEL_PATH, num_labels)
+    
+    # Load weights
+    model.load_state_dict(torch.load(TRAINED_MODEL_PATH, map_location=device))
+    model.to(device)
+    model.eval()
+    print("Model loaded successfully")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    model = None
+    tokenizer = None
+
+@app.get("/health")
+def health():
+    return {
+        "status": "AI service is running",
+        "model_loaded": model is not None,
+        "tokenizer_loaded": tokenizer is not None,
+        "encoder_loaded": label_encoder is not None,
+        "num_labels": num_labels
+    }
+
+@app.post("/predict")
+async def predict_emotion(request: EmotionRequest):
+    if model is None or tokenizer is None or label_encoder is None:
+        raise HTTPException(status_code=503, detail="Model not loaded properly")
+    
+    try:
+        inputs = tokenizer(
+            request.text,
+            return_tensors="pt",
+            truncation=True,
+            padding=True,
+            max_length=128
+        )
+
+        inputs.pop("token_type_ids", None)
+        
+        inputs = {key: value.to(device) for key, value in inputs.items()}
+        
+        with torch.no_grad():
+            outputs = model(inputs["input_ids"], inputs["attention_mask"])
+            probabilities = torch.sigmoid(outputs).cpu().numpy()[0]
+
+        top_indices = np.argsort(probabilities)[::-1][:3]
+        
+        results = []
+        for idx in top_indices:
+            if probabilities[idx] > 0.3:
+                results.append({
+                    "emotion": label_encoder.classes_[idx],
+                    "confidence": float(probabilities[idx])
+                })
+        
+        return {"success": True, "predictions": results}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/emotions")
+def get_emotions():
+    if label_encoder is None:
+        return {"emotions": ["happiness", "sadness", "anxiety", "fear", "love", "relief"]}
+    return {"emotions": label_encoder.classes_.tolist()}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5001)
