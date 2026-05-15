@@ -8,16 +8,8 @@ from transformers import DistilBertTokenizer, AutoModel
 import joblib
 import numpy as np
 
-app = FastAPI()
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Create sub-app for emotion classification
+emotion_app = FastAPI()
 
 class EmotionRequest(BaseModel):
     text: str
@@ -55,14 +47,11 @@ BASE_MODEL_PATH = "./base_model/distilbert-base-uncased"
 TRAINED_MODEL_PATH = "./trained_model/model.pth"
 
 try:
-    # Load tokenizer
     tokenizer = DistilBertTokenizer.from_pretrained(BASE_MODEL_PATH)
     print("Tokenizer loaded successfully")
     
-    # Load model architecture
     model = EmotionClassifier(BASE_MODEL_PATH, num_labels)
     
-    # Load weights
     model.load_state_dict(torch.load(TRAINED_MODEL_PATH, map_location=device))
     model.to(device)
     model.eval()
@@ -72,7 +61,7 @@ except Exception as e:
     model = None
     tokenizer = None
 
-@app.get("/health")
+@emotion_app.get("/health")
 def health():
     return {
         "status": "AI service is running",
@@ -82,7 +71,7 @@ def health():
         "num_labels": num_labels
     }
 
-@app.post("/predict")
+@emotion_app.post("/predict")
 async def predict_emotion(request: EmotionRequest):
     if model is None or tokenizer is None or label_encoder is None:
         raise HTTPException(status_code=503, detail="Model not loaded properly")
@@ -119,12 +108,8 @@ async def predict_emotion(request: EmotionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/emotions")
+@emotion_app.get("/emotions")
 def get_emotions():
     if label_encoder is None:
         return {"emotions": ["happiness", "sadness", "anxiety", "fear", "love", "relief"]}
     return {"emotions": label_encoder.classes_.tolist()}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5001)

@@ -2,6 +2,10 @@
 base_model/
 dataset_model/
 trained_model/
+venv/
+venev/
+
+__pycache__/
 
 # Mengabaikan file spesifik model dan encoder
 *.bin
@@ -14,3 +18,5 @@ trained_model/
 
 # Mengabaikan dataset
 *.csv
+
+.env

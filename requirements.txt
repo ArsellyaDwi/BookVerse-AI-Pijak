@@ -1,13 +1,11 @@
 fastapi
 uvicorn
-
 torch
 transformers
-
 scikit-learn
 pandas
 joblib
-
 mysql-connector-python
-
 python-multipart
+numpy
+python-dotenv
