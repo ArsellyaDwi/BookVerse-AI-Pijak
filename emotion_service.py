@@ -35,7 +35,7 @@ class EmotionClassifier(nn.Module):
         return self.fc(x)
 
 try:
-    label_encoder = joblib.load("label_encoder.pkl")
+    label_encoder = joblib.load("./trained_model/label_encoder.pkl")
     print(f"Label encoder loaded. Classes: {label_encoder.classes_}")
     num_labels = len(label_encoder.classes_)
 except FileNotFoundError:

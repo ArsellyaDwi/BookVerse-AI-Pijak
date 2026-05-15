@@ -9,3 +9,5 @@ mysql-connector-python
 python-multipart
 numpy
 python-dotenv
+joblib==1.4.2
+pydantic==2.10.4
