@@ -195,6 +195,8 @@ async def recommend(
                     "description": book['description'][:200] + "..." if len(book['description']) > 200 else book['description'],
                     "similarity_score": round(float(similarities[idx]), 4)
                 })
+
+        recommendations.sort(key=lambda x: x['similarity_score'], reverse=True)
         
         return {
             "user_id": user_id,
