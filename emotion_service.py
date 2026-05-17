@@ -209,6 +209,83 @@ async def tag_books():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@emotion_app.post("/tag-books-single")
+async def tag_books(book_id: int):
+    if model is None or tokenizer is None or label_encoder is None:
+        raise HTTPException(status_code=503, detail="Model not loaded properly")
+    
+    try:
+        start_time = time.time()
+    
+        conn = get_db_connection()
+        cursor = conn.cursor()
+            
+        cursor.execute("""
+            SELECT id, title, description FROM books 
+            WHERE description IS NOT NULL AND description != '' AND id = %s
+        """, [book_id])
+        
+        book = cursor.fetchone()
+        
+        if not book:
+            return {"success": True, "message": "No books found to tag", "books_processed": 0}
+        
+        updated_count = 0
+        
+        book_id = book[0]
+        title = book[1]
+        description = book[2]
+        
+        inputs = tokenizer(
+            description,
+            return_tensors="pt",
+            truncation=True,
+            padding=True,
+            max_length=128
+        )
+        
+        inputs.pop("token_type_ids", None)
+        inputs = {key: value.to(device) for key, value in inputs.items()}
+        
+        with torch.no_grad():
+            outputs = model(inputs["input_ids"], inputs["attention_mask"])
+            probabilities = torch.sigmoid(outputs).cpu().numpy()[0]
+        
+        all_emotions = []
+        for idx, prob in enumerate(probabilities):
+            if prob > 0.3:
+                all_emotions.append({
+                    "emotion": label_encoder.classes_[idx],
+                    "confidence": float(prob)
+                })
+
+        all_emotions.sort(key=lambda x: x["confidence"], reverse=True)
+        mood_tags_json = json.dumps(all_emotions)
+
+        cursor.execute(
+            "UPDATE books SET mood_tags = %s WHERE id = %s",
+            [mood_tags_json, book_id]
+        )
+        
+        updated_count += 1
+        
+        conn.commit()
+        
+        elapsed_time = time.time() - start_time
+        
+        return {
+            "success": True, 
+            "message": f"Successfully tagged {updated_count} books",
+            "books_processed": updated_count,
+            "total_books_checked": 1,
+            "execution_time_seconds": round(elapsed_time, 2),
+            "mood_tags_format": "[{emotion: string, confidence: float}]"
+        }  
+            
+        return {"success": True, "message": "All books tagged"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @emotion_app.get("/emotions")
 def get_emotions():
     if label_encoder is None:
