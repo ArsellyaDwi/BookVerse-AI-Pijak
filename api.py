@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from emotion_service import emotion_app
 from content_based_service import book_app
 from personality_service import personality_app
+from collaborative_service import collaborative_app
 
 load_dotenv()
 
@@ -53,6 +54,7 @@ async def api_key_middleware(request: Request, call_next):
 app.mount("/api/content-based", book_app)
 app.mount("/api/emotion", emotion_app)
 app.mount("/api/personality", personality_app)
+app.mount("/api/collaborative", collaborative_app)
 
 @app.get("/")
 async def root():
