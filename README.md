@@ -3,10 +3,7 @@ title: BookVerse AI Personality
 emoji: 📚
 colorFrom: indigo
 colorTo: purple
-sdk: gradio
-sdk_version: "5.31.0"
-python_version: "3.11"
-app_file: api.py
+sdk: docker
 pinned: false
 ---
 
