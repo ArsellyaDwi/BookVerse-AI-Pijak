@@ -1,7 +1,7 @@
 # Mengabaikan folder model dan dataset agar tidak berat
 base_model/
 dataset_model/
-trained_model/
+# trained_model/
 venv/
 venev/
 

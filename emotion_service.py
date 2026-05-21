@@ -66,7 +66,7 @@ except FileNotFoundError:
     label_encoder = None
     num_labels = 0
 
-BASE_MODEL_PATH = "./base_model/distilbert-base-uncased"
+BASE_MODEL_PATH = "distilbert-base-uncased"
 TRAINED_MODEL_PATH = "./trained_model/model.pth"
 
 try:
