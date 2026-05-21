@@ -204,7 +204,7 @@ async def recommend(
         cursor.close()
         conn.close()
 
-@book_app.post("/recommend/")
+@book_app.post("/recommend")
 async def recommend_post(
     user_id: int, 
     top_n: int = 10,
