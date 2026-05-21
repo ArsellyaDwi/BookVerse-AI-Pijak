@@ -63,7 +63,3 @@ async def root():
         "authentication": "API Key required for ALL endpoints",
         "api_key_header": API_KEY_NAME
     }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5001, reload=False)
